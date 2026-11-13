@@ -1,6 +1,8 @@
 # Mantenimiento predictivo con IA: vida útil restante de motores
 
-**Dashboard interactivo:** `docs/index.html` (publicado con GitHub Pages)
+**Dashboard interactivo:** https://alvaromcib.github.io/ia-mantenimiento-predictivo/
+
+![Dashboard](docs/portfolio/cover.jpg)
 
 Modelo que estima cuántos ciclos le quedan a un motor antes de fallar a partir de sus sensores, y convierte esa predicción en **alertas de mantenimiento** y en una **estimación de ahorro** frente al mantenimiento reactivo.
 
