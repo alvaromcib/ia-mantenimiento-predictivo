@@ -1,48 +1,48 @@
-# Mantenimiento predictivo con IA: vida útil restante de motores
+# AI predictive maintenance: remaining useful life of engines
 
-**Dashboard interactivo:** https://alvaromcib.github.io/ia-mantenimiento-predictivo/
+**Interactive dashboard:** [English](https://alvaromcib.github.io/ia-mantenimiento-predictivo/en/) · [Español](https://alvaromcib.github.io/ia-mantenimiento-predictivo/)
 
 ![Dashboard](docs/portfolio/cover.jpg)
 
-Modelo que estima cuántos ciclos le quedan a un motor antes de fallar a partir de sus sensores, y convierte esa predicción en **alertas de mantenimiento** y en una **estimación de ahorro** frente al mantenimiento reactivo.
+A model that estimates how many cycles an engine has left before it fails, based on its sensors, and turns that prediction into **maintenance alerts** and an **estimated saving** compared with reactive maintenance.
 
-Proyecto demostrativo con datos públicos (NASA C-MAPSS FD001). No usa datos de clientes.
+Demo project built on public data (NASA C-MAPSS FD001). No client data is used.
 
-## Resultados (test, 100 motores)
+## Results (test set, 100 engines)
 
-| Métrica | Valor |
+| Metric | Value |
 |---|---|
-| RMSE | 13,8 ciclos (67 % mejor que estimar la media) |
-| MAE | 9,9 ciclos |
-| Fallos próximos detectados (≤ 30 ciclos) | 21 de 25 (84 %) |
-| Falsas alarmas | 0 de 75 motores sanos |
-| Ahorro en la simulación de costes* | 67 % frente a esperar al fallo |
+| RMSE | 13.8 cycles (67% better than predicting the mean) |
+| MAE | 9.9 cycles |
+| Failures caught in time (≤ 30 cycles) | 21 of 25 (84%) |
+| False alarms | 0 of 75 healthy engines |
+| Saving in the cost simulation* | 67% versus waiting for the failure |
 
-\*Supuestos ilustrativos: fallo no planificado 50.000 €, intervención planificada 10.000 €. En un proyecto real se sustituyen por los costes de la planta.
+\*Illustrative assumptions: unplanned failure €50,000, planned intervention €10,000. In a real project they are replaced with the plant's own costs.
 
-## Enfoque
+## Approach
 
-1. **Datos:** 21 sensores y 3 ajustes de operación por ciclo; se descartan los sensores sin variación.
-2. **Variables:** medias y desviaciones móviles (5, 15 y 30 ciclos) y tendencia corto-largo plazo de cada sensor.
-3. **Modelo:** LightGBM con objetivo RUL acotado a 125 ciclos (en fase sana no hay información de degradación). Validación separando motores completos, nunca filas, para evitar fugas.
-4. **Decisión:** umbral de alerta, matriz de aciertos y simulación de coste, para hablar de euros y paradas, no solo de error.
+1. **Data:** 21 sensors and 3 operating settings per cycle; sensors with no variation are dropped.
+2. **Features:** rolling means and standard deviations (5, 15 and 30 cycles) and the short-versus-long-term trend of each sensor.
+3. **Model:** LightGBM with the RUL target capped at 125 cycles (a healthy engine carries no degradation information). Validation splits whole engines, never rows, to avoid leakage.
+4. **Decision:** alert threshold, hit matrix and cost simulation, so the discussion is about euros and downtime, not just error.
 
-## Cómo ejecutarlo
+## How to run it
 
 ```bash
 pip install -r requirements.txt
-python src/train.py                 # entrena, evalúa y escribe results/results.json
-python shared/build.py .         # regenera docs/index.html
+python src/train.py              # trains, evaluates and writes results/results.json
+python shared/build.py .         # rebuilds docs/index.html (ES) and docs/en/index.html (EN)
 ```
 
-## Cómo se aplicaría en una planta
+## How it would apply in a plant
 
-- Datos de SCADA/PLC o históricos de sensores de bombas, compresores, motores o líneas.
-- Primero un diagnóstico de los datos disponibles y de la métrica de negocio (horas de parada, coste de avería).
-- Piloto cerrado sobre un tipo de activo, con alertas integradas en las herramientas que ya usa mantenimiento.
+- Data from SCADA/PLC or sensor history of pumps, compressors, motors or production lines.
+- First, an assessment of the available data and of the business metric (downtime hours, cost of a breakdown).
+- A closed pilot on one asset type, with alerts integrated into the tools the maintenance team already uses.
 
 ---
 
-**Álvaro Martín Coll** · Físico · Ingeniero de IA para industria y energía · [Perfil en Malt](https://www.malt.com/profile/alvaromartincoll)
+**Álvaro Martín Coll** · Physicist · AI engineer for industry and energy · [Malt profile](https://www.malt.com/profile/alvaromartincoll)
 
-Datos: A. Saxena, K. Goebel, D. Simon, N. Eklund, *Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation*, PHM08. NASA Prognostics Data Repository.
+Data: A. Saxena, K. Goebel, D. Simon, N. Eklund, *Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation*, PHM08. NASA Prognostics Data Repository.
