@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mantenimiento predictivo con IA · Álvaro Martín Coll</title>
+<style>/*CSS*/</style>
+<style>:root { --accent: var(--s1); }</style>
+</head>
+<body>
+<header class="hero">
+  <canvas id="bg"></canvas>
+  <div class="wrap">
+    <div class="eyebrow">Caso demo · Mantenimiento predictivo</div>
+    <h1>Saber cuántos ciclos le quedan a un motor antes de que falle</h1>
+    <p class="lede">Modelo de vida útil restante (RUL) entrenado con datos de sensores de 100 motores turbofán (NASA C-MAPSS).
+      Convierte la predicción en alertas de mantenimiento y en un ahorro estimado frente a reparar cuando ya ha fallado.</p>
+    <div class="tags"><span class="tag">Series temporales</span><span class="tag">LightGBM</span><span class="tag">Ingeniería de variables</span><span class="tag">Industria 4.0</span><span class="tag">Datos públicos</span></div>
+  </div>
+</header>
+<main class="wrap">
+  <section class="kpis reveal">
+    <div class="kpi hero-kpi"><div class="l">Ahorro estimado en la simulación</div><div class="v" data-count="" id="k-save"></div><div class="d" id="k-save-d"></div></div>
+    <div class="kpi"><div class="l">Error medio (RMSE)</div><div class="v" id="k-rmse"></div><div class="d" id="k-rmse-d"></div></div>
+    <div class="kpi"><div class="l">Fallos detectados a tiempo</div><div class="v" id="k-recall"></div><div class="d" id="k-recall-d"></div></div>
+    <div class="kpi"><div class="l">Falsas alarmas</div><div class="v" id="k-fp"></div><div class="d">alertas sobre motores sanos</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card span-8 reveal">
+      <h2>Vida útil restante: real vs predicha</h2>
+      <p class="sub">Motores que el modelo no vio en el entrenamiento. Elige uno y recorre su vida ciclo a ciclo. En fase sana el modelo se fija en 125 ciclos: ahí solo importa saber que no hay riesgo.</p>
+      <div class="controls" id="units"></div>
+      <div class="legend"><span><i style="background:var(--text-3)"></i>Real</span><span><i style="background:var(--s1)"></i>Predicción</span><span><i style="background:var(--crit);height:8px;opacity:.5"></i>Zona de alerta (&le; 30 ciclos)</span></div>
+      <div id="traj"></div>
+    </div>
+    <div class="card span-4 reveal">
+      <h2>Alertas en el conjunto de test</h2>
+      <p class="sub">100 motores. Alerta cuando el modelo prevé 30 ciclos o menos.</p>
+      <div class="cm" id="cm"></div>
+      <p class="note" style="margin-top:14px">Lo que importa en planta: no dejar pasar fallos y no parar máquinas sanas.</p>
+    </div>
+
+    <div class="card span-6 reveal">
+      <h2>Precisión en los 100 motores de test</h2>
+      <p class="sub">Cada punto es un motor. Sobre la diagonal, predicción perfecta.</p>
+      <div id="scatter"></div>
+    </div>
+    <div class="card span-6 reveal">
+      <h2>Qué sensores anticipan el fallo</h2>
+      <p class="sub">Peso de cada sensor en las decisiones del modelo.</p>
+      <div id="imp"></div>
+    </div>
+
+    <div class="card span-6 reveal">
+      <h2>La señal de degradación</h2>
+      <p class="sub">Presión estática a la salida del compresor de alta (sensor 11), un motor de principio a fin.</p>
+      <div id="sensor"></div>
+    </div>
+    <div class="card span-6 reveal">
+      <h2>Simulación de coste: reactivo vs predictivo</h2>
+      <p class="sub">Supuestos ilustrativos: fallo no planificado 50.000 €, intervención planificada 10.000 €.</p>
+      <div id="cost"></div>
+      <p class="note">Los supuestos se ajustan con los costes reales de cada planta en el diagnóstico.</p>
+    </div>
+
+    <div class="card reveal">
+      <h2>Cómo se hizo</h2>
+      <p class="sub">El mismo proceso que aplico en un piloto con datos de cliente.</p>
+      <div class="steps">
+        <div class="step"><b>Datos</b>21 sensores y 3 ajustes de operación por ciclo. Se descartan los sensores sin variación.</div>
+        <div class="step"><b>Variables</b>Medias y dispersión móviles (5, 15 y 30 ciclos) y tendencia de cada sensor.</div>
+        <div class="step"><b>Modelo</b>Gradient boosting (LightGBM) con objetivo RUL acotado a 125 ciclos. Validación separando motores, nunca filas.</div>
+        <div class="step"><b>Decisión</b>Umbral de alerta, matriz de aciertos y simulación de coste para hablar en euros, no en RMSE.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div><b>Álvaro Martín Coll</b> · Físico · Ingeniero de IA para industria y energía<br>
+      <span class="note">Datos: NASA C-MAPSS FD001 (dominio público). Proyecto demostrativo, sin datos de clientes.</span></div>
+    <div><a class="cta" href="https://www.malt.es/profile/alvaromartincoll1">Hablemos de tu planta</a></div>
+  </footer>
+</main>
+<script>/*VIZ*/</script>
+<script>
+const R = /*DATA*/;
+const $ = (id) => document.getElementById(id);
+const eur = (v) => v.toLocaleString("es-ES") + " €";
+
+// KPIs
+const cs = R.cost_simulation;
+$("k-save").dataset.count = cs.saving_pct; $("k-save").dataset.suf = " %"; $("k-save").dataset.dec = 0;
+$("k-save-d").textContent = `${eur(cs.saving_eur)} menos que esperar al fallo`;
+$("k-rmse").textContent = R.metrics.rmse.toLocaleString("es-ES",{maximumFractionDigits:1}) + " ciclos";
+$("k-rmse-d").textContent = `${Math.round(R.metrics.improvement_vs_baseline_pct)} % mejor que una estimación media`;
+$("k-recall").textContent = Math.round(R.alerts.recall * 100) + " %";
+$("k-recall-d").textContent = `${R.alerts.tp} de ${R.alerts.tp + R.alerts.fn} motores próximos a fallar`;
+$("k-fp").textContent = R.alerts.fp;
+
+// Confusion matrix
+const a = R.alerts;
+$("cm").innerHTML = `<div class="h"></div><div class="h">Alerta</div><div class="h">Sin alerta</div>
+  <div class="h" style="text-align:right">Falla pronto</div><div class="ok"><b>${a.tp}</b>detectados</div><div class="${a.fn?"bad":""}"><b>${a.fn}</b>no detectados</div>
+  <div class="h" style="text-align:right">Sano</div><div class="${a.fp?"bad":""}"><b>${a.fp}</b>falsas alarmas</div><div class="ok"><b>${a.tn}</b>correctos</div>`;
+
+// Trajectories
+const units = Object.keys(R.trajectories);
+function drawUnit(u) {
+  const t = R.trajectories[u];
+  Viz.line($("traj"), { x: t.cycle, height: 320, xLabel: "Ciclo de operación", yLabel: "Ciclos restantes",
+    band: { from: 0, to: 30, color: "var(--crit)", label: "Zona de alerta" },
+    xTip: (v) => "Ciclo " + v, yTip: (v) => Math.round(v) + " ciclos",
+    series: [{ name: "Real", values: t.rul_true, color: getComputedStyle(document.documentElement).getPropertyValue("--text-3"), dash: "4 4" },
+             { name: "Predicción", values: t.pred, color: "#3987e5", fill: true }] });
+  document.querySelectorAll("#units .chip").forEach((c) => c.setAttribute("aria-pressed", c.dataset.u === u));
+}
+units.slice(0, 8).forEach((u, i) => {
+  const b = document.createElement("button"); b.className = "chip"; b.dataset.u = u; b.textContent = "Motor " + u;
+  b.onclick = () => drawUnit(u); $("units").appendChild(b);
+});
+
+function drawAll() {
+  drawUnit(document.querySelector('#units .chip[aria-pressed="true"]')?.dataset.u || units[0]);
+  const tp = R.test_predictions;
+  Viz.scatter($("scatter"), { height: 300, xLabel: "Ciclos restantes reales", yLabel: "Predichos", diag: true, color: "#3987e5",
+    points: tp.true.map((v, i) => ({ x: Math.min(v, 125), y: tp.pred[i], tip: `<b>Motor ${i + 1}</b><div>Real: ${v} ciclos</div><div>Predicho: ${Math.round(tp.pred[i])}</div>` })) });
+  const names = { s2: "Temp. compresor BP", s3: "Temp. compresor AP", s4: "Temp. turbina BP", s7: "Presión compresor AP",
+    s8: "Velocidad ventilador", s9: "Velocidad núcleo", s11: "Presión estática AP", s12: "Ratio combustible", s13: "Vel. ventilador corr.",
+    s14: "Vel. núcleo corr.", s15: "Ratio bypass", s17: "Entalpía purga", s20: "Refrigeración HPT", s21: "Refrigeración LPT", cycle: "Ciclo", op1: "Ajuste op. 1", op2: "Ajuste op. 2" };
+  Viz.bars($("imp"), { color: "#3987e5", fmt: (v) => Math.round(v * 100) + " %",
+    items: Object.entries(R.importance).slice(0, 8).map(([k, v]) => ({ label: names[k] || k, value: v })) });
+  const se = R.sensor_example;
+  Viz.line($("sensor"), { x: se.cycle, height: 260, xLabel: "Ciclo de operación", yMin: Math.min(...se.s11) - 0.1, yMax: Math.max(...se.s11) + 0.1,
+    xTip: (v) => "Ciclo " + v, series: [{ name: "Sensor 11", values: se.s11, color: "#d95926" }] });
+  Viz.bars($("cost"), { fmt: eur, items: [
+    { label: "Reactivo", value: cs.reactive_eur, color: "#d95926" },
+    { label: "Predictivo", value: cs.predictive_eur, color: "#199e70" }] });
+}
+drawAll();
+addEventListener("resize", () => { clearTimeout(window._rt); window._rt = setTimeout(drawAll, 150); });
+
+// Reveal + count-up
+const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); Viz.countUp(e.target); io.unobserve(e.target); } }), { threshold: .15 });
+document.querySelectorAll(".reveal").forEach((e) => io.observe(e));
+
+// Hero background: drifting sensor traces
+(function () {
+  const c = $("bg"), x = c.getContext("2d"); let w, h, t = 0;
+  const fit = () => { w = c.width = c.offsetWidth * devicePixelRatio; h = c.height = c.offsetHeight * devicePixelRatio; };
+  fit(); addEventListener("resize", fit);
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  (function draw() {
+    x.clearRect(0, 0, w, h);
+    for (let k = 0; k < 5; k++) {
+      x.beginPath(); x.strokeStyle = `rgba(57,135,229,${0.08 + k * 0.04})`; x.lineWidth = devicePixelRatio;
+      for (let i = 0; i <= 200; i++) {
+        const px = (i / 200) * w, drift = Math.pow(i / 200, 3) * h * 0.25 * (k + 1) / 5;
+        const py = h * (0.35 + k * 0.1) - drift + Math.sin(i * 0.15 + t + k) * 6 * devicePixelRatio + Math.sin(i * 0.9 + t * 2 + k * 3) * 2 * devicePixelRatio;
+        i ? x.lineTo(px, py) : x.moveTo(px, py);
+      }
+      x.stroke();
+    }
+    t += 0.01; if (!reduce) requestAnimationFrame(draw);
+  })();
+})();
+</script>
+</body>
+</html>
